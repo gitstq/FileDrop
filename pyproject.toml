@@ -1,0 +1,23 @@
+[build-system]
+requires = ["setuptools>=45", "wheel"]
+build-backend = "setuptools.backends._legacy:_Backend"
+
+[project]
+name = "filedrop"
+version = "1.0.0"
+description = "轻量级自托管文件共享服务器"
+readme = "README.md"
+license = {text = "MIT"}
+requires-python = ">=3.8"
+authors = [
+    {name = "FileDrop"},
+]
+
+[project.scripts]
+filedrop = "filedrop.__main__:main"
+
+[tool.setuptools.packages.find]
+include = ["filedrop*"]
+
+[tool.setuptools.package-data]
+filedrop = ["templates/*.html"]

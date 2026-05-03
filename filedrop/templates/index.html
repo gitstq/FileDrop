@@ -1,0 +1,523 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FileDrop - 文件共享</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif;
+            background: #f0f2f5;
+            color: #333;
+            min-height: 100vh;
+        }
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px 0;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .header-content {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 12px;
+        }
+        .header h1 {
+            font-size: 24px;
+            font-weight: 700;
+            letter-spacing: -0.5px;
+        }
+        .header-stats {
+            display: flex;
+            gap: 20px;
+            font-size: 14px;
+            opacity: 0.9;
+        }
+        .header-stats span { font-weight: 500; }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 24px 20px;
+        }
+        .toolbar {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+        .search-box {
+            flex: 1;
+            min-width: 200px;
+            position: relative;
+        }
+        .search-box input {
+            width: 100%;
+            padding: 10px 16px 10px 40px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 14px;
+            transition: border-color 0.2s;
+            background: white;
+        }
+        .search-box input:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+        .search-box::before {
+            content: "\1F50D";
+            position: absolute;
+            left: 12px;
+            top: 50%;
+            transform: translateY(-50%);
+            font-size: 16px;
+        }
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s;
+            text-decoration: none;
+            white-space: nowrap;
+        }
+        .btn-primary {
+            background: #667eea;
+            color: white;
+        }
+        .btn-primary:hover { background: #5a6fd6; }
+        .btn-secondary {
+            background: white;
+            color: #333;
+            border: 2px solid #e0e0e0;
+        }
+        .btn-secondary:hover { border-color: #667eea; color: #667eea; }
+        .btn-danger {
+            background: #ff4757;
+            color: white;
+        }
+        .btn-danger:hover { background: #e8414f; }
+        .btn-sm {
+            padding: 6px 12px;
+            font-size: 12px;
+        }
+        .file-table {
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+            overflow: hidden;
+        }
+        .file-table table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        .file-table th {
+            background: #f8f9fa;
+            padding: 14px 16px;
+            text-align: left;
+            font-size: 12px;
+            font-weight: 600;
+            color: #666;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            cursor: pointer;
+            user-select: none;
+            white-space: nowrap;
+        }
+        .file-table th:hover { background: #eef0f3; }
+        .file-table th .sort-icon { margin-left: 4px; opacity: 0.5; }
+        .file-table th.sorted .sort-icon { opacity: 1; color: #667eea; }
+        .file-table td {
+            padding: 12px 16px;
+            border-top: 1px solid #f0f0f0;
+            font-size: 14px;
+        }
+        .file-table tr:hover td { background: #f8f9ff; }
+        .file-name {
+            font-weight: 500;
+            color: #333;
+            max-width: 300px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+        .file-name a {
+            color: #333;
+            text-decoration: none;
+        }
+        .file-name a:hover { color: #667eea; }
+        .file-size { color: #666; font-variant-numeric: tabular-nums; }
+        .file-time { color: #999; font-size: 13px; }
+        .file-actions {
+            display: flex;
+            gap: 6px;
+            flex-wrap: nowrap;
+        }
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+            color: #999;
+        }
+        .empty-state .icon { font-size: 48px; margin-bottom: 16px; }
+        .empty-state h3 { font-size: 18px; color: #666; margin-bottom: 8px; }
+        .empty-state p { font-size: 14px; }
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0,0,0,0.5);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+        }
+        .modal-overlay.active { display: flex; }
+        .modal {
+            background: white;
+            border-radius: 12px;
+            padding: 24px;
+            max-width: 480px;
+            width: 90%;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.2);
+        }
+        .modal h3 { margin-bottom: 16px; font-size: 18px; }
+        .modal label {
+            display: block;
+            margin-bottom: 4px;
+            font-size: 13px;
+            font-weight: 500;
+            color: #666;
+        }
+        .modal input, .modal select {
+            width: 100%;
+            padding: 10px 12px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 14px;
+            margin-bottom: 12px;
+        }
+        .modal input:focus, .modal select:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+        .modal-actions {
+            display: flex;
+            gap: 8px;
+            justify-content: flex-end;
+            margin-top: 8px;
+        }
+        .toast {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background: #333;
+            color: white;
+            padding: 12px 20px;
+            border-radius: 8px;
+            font-size: 14px;
+            z-index: 2000;
+            transform: translateY(100px);
+            opacity: 0;
+            transition: all 0.3s;
+        }
+        .toast.show { transform: translateY(0); opacity: 1; }
+        .toast.success { background: #2ed573; }
+        .toast.error { background: #ff4757; }
+        .pagination {
+            display: flex;
+            justify-content: center;
+            gap: 8px;
+            margin-top: 20px;
+        }
+        @media (max-width: 768px) {
+            .header-content { flex-direction: column; align-items: flex-start; }
+            .toolbar { flex-direction: column; }
+            .search-box { min-width: 100%; }
+            .file-table { overflow-x: auto; }
+            .file-name { max-width: 150px; }
+            .file-actions { flex-direction: column; }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <div class="header-content">
+            <h1>FileDrop</h1>
+            <div class="header-stats">
+                <span>{{total_files}} 个文件</span>
+                <span>{{total_size}}</span>
+            </div>
+        </div>
+    </div>
+
+    <div class="container">
+        <div class="toolbar">
+            <div class="search-box">
+                <input type="text" id="searchInput" placeholder="搜索文件..." value="{{search}}">
+            </div>
+            <a href="/upload" class="btn btn-primary">上传文件</a>
+            <button class="btn btn-secondary" onclick="refreshFiles()">刷新</button>
+        </div>
+
+        <div class="file-table">
+            <table>
+                <thead>
+                    <tr>
+                        <th onclick="sortFiles('original_name')" id="th-name">
+                            文件名 <span class="sort-icon">&#9650;</span>
+                        </th>
+                        <th onclick="sortFiles('file_size')" id="th-size">
+                            大小 <span class="sort-icon">&#9650;</span>
+                        </th>
+                        <th onclick="sortFiles('upload_time')" id="th-time">
+                            上传时间 <span class="sort-icon">&#9650;</span>
+                        </th>
+                        <th>操作</th>
+                    </tr>
+                </thead>
+                <tbody id="fileTableBody">
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- 分享对话框 -->
+    <div class="modal-overlay" id="shareModal">
+        <div class="modal">
+            <h3>创建分享链接</h3>
+            <label>密码保护（可选）</label>
+            <input type="password" id="sharePassword" placeholder="留空则不需要密码">
+            <label>过期时间</label>
+            <select id="shareExpires">
+                <option value="0">永不过期</option>
+                <option value="1">1小时</option>
+                <option value="6">6小时</option>
+                <option value="24">1天</option>
+                <option value="72">3天</option>
+                <option value="168">7天</option>
+                <option value="720">30天</option>
+            </select>
+            <label>最大下载次数</label>
+            <select id="shareMaxDownloads">
+                <option value="0">不限制</option>
+                <option value="1">1次</option>
+                <option value="5">5次</option>
+                <option value="10">10次</option>
+                <option value="50">50次</option>
+                <option value="100">100次</option>
+            </select>
+            <div class="modal-actions">
+                <button class="btn btn-secondary" onclick="closeShareModal()">取消</button>
+                <button class="btn btn-primary" id="createShareBtn" onclick="createShare()">创建</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 分享结果对话框 -->
+    <div class="modal-overlay" id="shareResultModal">
+        <div class="modal">
+            <h3>分享链接已创建</h3>
+            <label>分享链接</label>
+            <input type="text" id="shareUrl" readonly onclick="this.select()">
+            <div class="modal-actions">
+                <button class="btn btn-secondary" onclick="closeShareResultModal()">关闭</button>
+                <button class="btn btn-primary" onclick="copyShareUrl()">复制链接</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="toast" id="toast"></div>
+
+    <script>
+        let currentFiles = [];
+        let currentSort = 'upload_time';
+        let currentOrder = 'desc';
+        let currentShareFileId = null;
+
+        // 初始化
+        document.addEventListener('DOMContentLoaded', function() {
+            loadFiles();
+            document.getElementById('searchInput').addEventListener('input', debounce(function() {
+                loadFiles();
+            }, 300));
+        });
+
+        function debounce(fn, delay) {
+            let timer;
+            return function(...args) {
+                clearTimeout(timer);
+                timer = setTimeout(() => fn.apply(this, args), delay);
+            };
+        }
+
+        async function loadFiles() {
+            const search = document.getElementById('searchInput').value;
+            const params = new URLSearchParams({
+                sort: currentSort,
+                order: currentOrder,
+                limit: '100'
+            });
+            if (search) params.append('search', search);
+
+            try {
+                const resp = await fetch('/api/files?' + params.toString());
+                const data = await resp.json();
+                currentFiles = data.files || [];
+                renderFiles();
+            } catch (e) {
+                showToast('加载文件列表失败', 'error');
+            }
+        }
+
+        function renderFiles() {
+            const tbody = document.getElementById('fileTableBody');
+
+            if (currentFiles.length === 0) {
+                tbody.innerHTML = `
+                    <tr><td colspan="4">
+                        <div class="empty-state">
+                            <div class="icon">&#128193;</div>
+                            <h3>暂无文件</h3>
+                            <p>点击"上传文件"开始共享</p>
+                        </div>
+                    </td></tr>`;
+                return;
+            }
+
+            tbody.innerHTML = currentFiles.map(f => {
+                const time = f.upload_time ? f.upload_time.replace('T', ' ').substring(0, 19) : '';
+                return `<tr>
+                    <td class="file-name">
+                        <a href="/api/preview/${f.id}" target="_blank" title="${escapeHtml(f.name)}">${escapeHtml(f.name)}</a>
+                    </td>
+                    <td class="file-size">${f.size_formatted}</td>
+                    <td class="file-time">${time}</td>
+                    <td class="file-actions">
+                        <button class="btn btn-primary btn-sm" onclick="downloadFile('${f.id}')">下载</button>
+                        <button class="btn btn-secondary btn-sm" onclick="openShareModal('${f.id}')">分享</button>
+                        <button class="btn btn-danger btn-sm" onclick="deleteFile('${f.id}', '${escapeHtml(f.name)}')">删除</button>
+                    </td>
+                </tr>`;
+            }).join('');
+        }
+
+        function sortFiles(field) {
+            if (currentSort === field) {
+                currentOrder = currentOrder === 'asc' ? 'desc' : 'asc';
+            } else {
+                currentSort = field;
+                currentOrder = 'desc';
+            }
+            loadFiles();
+        }
+
+        function refreshFiles() {
+            loadFiles();
+            showToast('已刷新', 'success');
+        }
+
+        function downloadFile(fileId) {
+            window.location.href = '/api/download/' + fileId;
+        }
+
+        async function deleteFile(fileId, filename) {
+            if (!confirm('确定要删除文件 "' + filename + '" 吗？此操作不可恢复。')) return;
+
+            try {
+                const resp = await fetch('/api/file/' + fileId, { method: 'DELETE' });
+                const data = await resp.json();
+                if (data.success) {
+                    showToast('文件已删除', 'success');
+                    loadFiles();
+                } else {
+                    showToast(data.error || '删除失败', 'error');
+                }
+            } catch (e) {
+                showToast('删除失败', 'error');
+            }
+        }
+
+        function openShareModal(fileId) {
+            currentShareFileId = fileId;
+            document.getElementById('sharePassword').value = '';
+            document.getElementById('shareExpires').value = '0';
+            document.getElementById('shareMaxDownloads').value = '0';
+            document.getElementById('shareModal').classList.add('active');
+        }
+
+        function closeShareModal() {
+            document.getElementById('shareModal').classList.remove('active');
+        }
+
+        async function createShare() {
+            const password = document.getElementById('sharePassword').value;
+            const expires = document.getElementById('shareExpires').value;
+            const maxDownloads = document.getElementById('shareMaxDownloads').value;
+
+            const body = {
+                password: password,
+                expires: parseInt(expires),
+                max_downloads: parseInt(maxDownloads)
+            };
+
+            try {
+                const resp = await fetch('/api/share/create/' + currentShareFileId, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(body)
+                });
+                const data = await resp.json();
+
+                if (data.success) {
+                    closeShareModal();
+                    document.getElementById('shareUrl').value = data.share_url;
+                    document.getElementById('shareResultModal').classList.add('active');
+                } else {
+                    showToast(data.error || '创建分享失败', 'error');
+                }
+            } catch (e) {
+                showToast('创建分享失败', 'error');
+            }
+        }
+
+        function closeShareResultModal() {
+            document.getElementById('shareResultModal').classList.remove('active');
+        }
+
+        function copyShareUrl() {
+            const input = document.getElementById('shareUrl');
+            input.select();
+            navigator.clipboard.writeText(input.value).then(() => {
+                showToast('链接已复制到剪贴板', 'success');
+            }).catch(() => {
+                document.execCommand('copy');
+                showToast('链接已复制', 'success');
+            });
+        }
+
+        function showToast(message, type) {
+            const toast = document.getElementById('toast');
+            toast.textContent = message;
+            toast.className = 'toast ' + (type || '');
+            toast.classList.add('show');
+            setTimeout(() => toast.classList.remove('show'), 3000);
+        }
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+    </script>
+</body>
+</html>

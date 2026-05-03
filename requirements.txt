@@ -1,0 +1,1 @@
+# FileDrop - 零依赖项目，仅使用Python标准库

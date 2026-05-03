@@ -1,0 +1,429 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FileDrop - 上传文件</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif;
+            background: #f0f2f5;
+            color: #333;
+            min-height: 100vh;
+        }
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px 0;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .header-content {
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 0 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .header h1 { font-size: 24px; font-weight: 700; }
+        .header a {
+            color: white;
+            text-decoration: none;
+            opacity: 0.9;
+            font-size: 14px;
+        }
+        .header a:hover { opacity: 1; }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 40px 20px;
+        }
+        .upload-area {
+            background: white;
+            border-radius: 16px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+            padding: 40px;
+            text-align: center;
+        }
+        .drop-zone {
+            border: 3px dashed #d0d0d0;
+            border-radius: 12px;
+            padding: 60px 20px;
+            cursor: pointer;
+            transition: all 0.3s;
+            position: relative;
+        }
+        .drop-zone:hover, .drop-zone.dragover {
+            border-color: #667eea;
+            background: #f8f9ff;
+        }
+        .drop-zone.dragover {
+            transform: scale(1.01);
+        }
+        .drop-zone .icon {
+            font-size: 48px;
+            margin-bottom: 16px;
+            color: #999;
+        }
+        .drop-zone.dragover .icon { color: #667eea; }
+        .drop-zone h3 {
+            font-size: 18px;
+            color: #333;
+            margin-bottom: 8px;
+        }
+        .drop-zone p {
+            font-size: 14px;
+            color: #999;
+        }
+        .drop-zone input[type="file"] {
+            position: absolute;
+            top: 0; left: 0; right: 0; bottom: 0;
+            opacity: 0;
+            cursor: pointer;
+        }
+        .file-list {
+            margin-top: 24px;
+            text-align: left;
+        }
+        .file-item {
+            display: flex;
+            align-items: center;
+            padding: 12px 16px;
+            background: #f8f9fa;
+            border-radius: 8px;
+            margin-bottom: 8px;
+            gap: 12px;
+        }
+        .file-item .file-icon {
+            font-size: 24px;
+            flex-shrink: 0;
+        }
+        .file-item .file-info {
+            flex: 1;
+            min-width: 0;
+        }
+        .file-item .file-name {
+            font-weight: 500;
+            font-size: 14px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+        .file-item .file-size {
+            font-size: 12px;
+            color: #999;
+        }
+        .file-item .file-progress {
+            width: 100%;
+            height: 4px;
+            background: #e0e0e0;
+            border-radius: 2px;
+            margin-top: 6px;
+            overflow: hidden;
+        }
+        .file-item .file-progress-bar {
+            height: 100%;
+            background: #667eea;
+            border-radius: 2px;
+            transition: width 0.3s;
+            width: 0%;
+        }
+        .file-item .file-status {
+            font-size: 12px;
+            color: #667eea;
+            flex-shrink: 0;
+        }
+        .file-item .file-status.error { color: #ff4757; }
+        .file-item .file-status.success { color: #2ed573; }
+        .file-item .remove-btn {
+            background: none;
+            border: none;
+            color: #999;
+            cursor: pointer;
+            font-size: 18px;
+            padding: 4px;
+            flex-shrink: 0;
+        }
+        .file-item .remove-btn:hover { color: #ff4757; }
+        .upload-actions {
+            margin-top: 24px;
+            display: flex;
+            gap: 12px;
+            justify-content: center;
+        }
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 12px 28px;
+            border: none;
+            border-radius: 8px;
+            font-size: 15px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .btn-primary {
+            background: #667eea;
+            color: white;
+        }
+        .btn-primary:hover { background: #5a6fd6; }
+        .btn-primary:disabled { background: #ccc; cursor: not-allowed; }
+        .btn-secondary {
+            background: white;
+            color: #333;
+            border: 2px solid #e0e0e0;
+        }
+        .btn-secondary:hover { border-color: #667eea; color: #667eea; }
+        .max-size-hint {
+            font-size: 12px;
+            color: #999;
+            margin-top: 12px;
+        }
+        .toast {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background: #333;
+            color: white;
+            padding: 12px 20px;
+            border-radius: 8px;
+            font-size: 14px;
+            z-index: 2000;
+            transform: translateY(100px);
+            opacity: 0;
+            transition: all 0.3s;
+        }
+        .toast.show { transform: translateY(0); opacity: 1; }
+        .toast.success { background: #2ed573; }
+        .toast.error { background: #ff4757; }
+        @media (max-width: 600px) {
+            .container { padding: 20px 12px; }
+            .upload-area { padding: 20px; }
+            .drop-zone { padding: 40px 12px; }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <div class="header-content">
+            <h1>FileDrop</h1>
+            <a href="/">&#8592; 返回文件列表</a>
+        </div>
+    </div>
+
+    <div class="container">
+        <div class="upload-area">
+            <div class="drop-zone" id="dropZone">
+                <div class="icon">&#128228;</div>
+                <h3>拖拽文件到此处上传</h3>
+                <p>或点击选择文件（支持多选）</p>
+                <input type="file" id="fileInput" multiple>
+            </div>
+            <p class="max-size-hint">最大文件大小: {{max_size}}</p>
+
+            <div class="file-list" id="fileList"></div>
+
+            <div class="upload-actions" id="uploadActions" style="display:none;">
+                <button class="btn btn-secondary" onclick="clearFiles()">清空</button>
+                <button class="btn btn-primary" id="uploadBtn" onclick="uploadFiles()">
+                    开始上传
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <div class="toast" id="toast"></div>
+
+    <script>
+        let pendingFiles = [];
+        let isUploading = false;
+        const maxFileSize = parseInt('{{max_size_bytes}}') || 0;
+
+        const dropZone = document.getElementById('dropZone');
+        const fileInput = document.getElementById('fileInput');
+
+        // 拖拽事件
+        dropZone.addEventListener('dragover', function(e) {
+            e.preventDefault();
+            dropZone.classList.add('dragover');
+        });
+        dropZone.addEventListener('dragleave', function(e) {
+            e.preventDefault();
+            dropZone.classList.remove('dragover');
+        });
+        dropZone.addEventListener('drop', function(e) {
+            e.preventDefault();
+            dropZone.classList.remove('dragover');
+            addFiles(e.dataTransfer.files);
+        });
+
+        // 文件选择
+        fileInput.addEventListener('change', function(e) {
+            addFiles(e.target.files);
+            fileInput.value = '';
+        });
+
+        function addFiles(fileList) {
+            for (let i = 0; i < fileList.length; i++) {
+                const file = fileList[i];
+                if (maxFileSize > 0 && file.size > maxFileSize) {
+                    showToast(`文件 "${file.name}" 超过大小限制`, 'error');
+                    continue;
+                }
+                pendingFiles.push({
+                    id: Date.now() + '_' + i,
+                    file: file,
+                    status: 'pending'
+                });
+            }
+            renderFileList();
+        }
+
+        function removeFile(id) {
+            pendingFiles = pendingFiles.filter(f => f.id !== id);
+            renderFileList();
+        }
+
+        function clearFiles() {
+            pendingFiles = [];
+            renderFileList();
+        }
+
+        function formatSize(bytes) {
+            if (bytes === 0) return '0 B';
+            const units = ['B', 'KB', 'MB', 'GB', 'TB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(1024));
+            return (bytes / Math.pow(1024, i)).toFixed(i === 0 ? 0 : 1) + ' ' + units[i];
+        }
+
+        function renderFileList() {
+            const container = document.getElementById('fileList');
+            const actions = document.getElementById('uploadActions');
+
+            if (pendingFiles.length === 0) {
+                container.innerHTML = '';
+                actions.style.display = 'none';
+                return;
+            }
+
+            actions.style.display = 'flex';
+            container.innerHTML = pendingFiles.map(f => {
+                let statusText = '';
+                let statusClass = '';
+                let progressHtml = '';
+
+                if (f.status === 'uploading') {
+                    statusText = f.progress ? f.progress + '%' : '上传中...';
+                    progressHtml = `<div class="file-progress"><div class="file-progress-bar" style="width:${f.progress || 0}%"></div></div>`;
+                } else if (f.status === 'success') {
+                    statusText = '完成';
+                    statusClass = 'success';
+                } else if (f.status === 'error') {
+                    statusText = '失败';
+                    statusClass = 'error';
+                }
+
+                return `<div class="file-item" data-id="${f.id}">
+                    <div class="file-icon">&#128196;</div>
+                    <div class="file-info">
+                        <div class="file-name" title="${escapeHtml(f.file.name)}">${escapeHtml(f.file.name)}</div>
+                        <div class="file-size">${formatSize(f.file.size)}</div>
+                        ${progressHtml}
+                    </div>
+                    <div class="file-status ${statusClass}">${statusText}</div>
+                    ${f.status === 'pending' ? `<button class="remove-btn" onclick="removeFile('${f.id}')">&#10005;</button>` : ''}
+                </div>`;
+            }).join('');
+        }
+
+        async function uploadFiles() {
+            if (isUploading) return;
+            isUploading = true;
+
+            const uploadBtn = document.getElementById('uploadBtn');
+            uploadBtn.disabled = true;
+            uploadBtn.textContent = '上传中...';
+
+            let successCount = 0;
+            let errorCount = 0;
+
+            for (const item of pendingFiles) {
+                if (item.status !== 'pending') continue;
+
+                item.status = 'uploading';
+                item.progress = 0;
+                renderFileList();
+
+                try {
+                    const formData = new FormData();
+                    formData.append('file', item.file);
+
+                    const xhr = new XMLHttpRequest();
+
+                    await new Promise((resolve, reject) => {
+                        xhr.upload.onprogress = function(e) {
+                            if (e.lengthComputable) {
+                                item.progress = Math.round(e.loaded / e.total * 100);
+                                renderFileList();
+                            }
+                        };
+                        xhr.onload = function() {
+                            if (xhr.status >= 200 && xhr.status < 300) {
+                                resolve();
+                            } else {
+                                reject(new Error('HTTP ' + xhr.status));
+                            }
+                        };
+                        xhr.onerror = function() { reject(new Error('网络错误')); };
+                        xhr.open('POST', '/api/upload');
+                        xhr.send(formData);
+                    });
+
+                    item.status = 'success';
+                    successCount++;
+                } catch (e) {
+                    item.status = 'error';
+                    errorCount++;
+                }
+                renderFileList();
+            }
+
+            isUploading = false;
+            uploadBtn.disabled = false;
+            uploadBtn.textContent = '开始上传';
+
+            if (successCount > 0) {
+                showToast(`成功上传 ${successCount} 个文件`, 'success');
+            }
+            if (errorCount > 0) {
+                showToast(`${errorCount} 个文件上传失败`, 'error');
+            }
+
+            // 移除已完成的文件
+            setTimeout(() => {
+                pendingFiles = pendingFiles.filter(f => f.status === 'pending' || f.status === 'error');
+                if (pendingFiles.length === 0) {
+                    pendingFiles = [];
+                }
+                renderFileList();
+            }, 2000);
+        }
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        function showToast(message, type) {
+            const toast = document.getElementById('toast');
+            toast.textContent = message;
+            toast.className = 'toast ' + (type || '');
+            toast.classList.add('show');
+            setTimeout(() => toast.classList.remove('show'), 3000);
+        }
+    </script>
+</body>
+</html>
